@@ -1,6 +1,8 @@
 {
 	"$schema": "https://json.schemastore.org/tsconfig",
 	"compilerOptions": {
+		"rootDir": "src",
+		"baseUrl": "./",
 		"declaration": true,
 		"declarationDir": "build",
 		"jsx": "react",
@@ -8,7 +10,7 @@
 		"paths": {
 			"@anrivera/elegant-picture-box": ["./src/index"]
 		},
-		"skipLibCheck": false,
+		"skipLibCheck": true, //false
 		"allowJs": true,
 		"allowSyntheticDefaultImports": true,
 		"allowUnreachableCode": false,
@@ -20,7 +22,7 @@
 		//	"importsNotUsedAsValues": "error",
 		"isolatedModules": true,
 		"lib": ["ES6", "DOM", "ES2016", "ES2017", "ESNext"],
-		"moduleResolution": "Node",
+		"moduleResolution": "node",
 		"noFallthroughCasesInSwitch": true,
 		"noEmit": true,
 		//"noImplicitAny": true,
@@ -31,10 +33,10 @@
 		//"noUnusedParameters": true,
 		"resolveJsonModule": true,
 		"sourceMap": true,
-		"strict": false,
+		"strict": false, // false
 		"target": "ESNext"
 		/*
-    "baseUrl": "./",
+
 		"incremental": true
     */
 	},

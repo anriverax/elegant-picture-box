@@ -1,4 +1,3 @@
-// @flow
 import sync from 'framesync';
 import {
 	animate,
@@ -14,8 +13,8 @@ import {
 	easeOut,
 	linear,
 } from 'popmotion';
-import * as React from 'react';
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import './picturesGrid.scss';
 import {
 	ChildCoordinates,
 	Coords,
@@ -25,7 +24,6 @@ import {
 	Positions,
 	Transition,
 } from './types';
-
 const popmotionEasing: Transition = {
 	anticipate,
 	backIn,
@@ -182,6 +180,8 @@ const getNewPositions = (
 
 			return data;
 		});
+
+	return positionGridChildren;
 };
 
 const startAnimation = (
@@ -257,8 +257,8 @@ const PicturesGrid = ({ items, transition, duration, timeOut }: ItemsProps) => {
 			let target = ev.target as any;
 
 			if (target.tagName === 'IMG') {
-				const elParent = target.offsetParent['offsetParent'];
-
+				const elParent = target.parentElement['parentElement'];
+				//target.parentElement.classList.toggle('zoom');
 				elParent.classList.toggle('zoom');
 
 				const newPositions = getNewPositions(gridsItemPosition, childrenElement);
