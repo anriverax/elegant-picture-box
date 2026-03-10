@@ -41,7 +41,7 @@ const popmotionEasing: Transition = {
 
 const DATASET_KEY = 'elegantPictureBoxId';
 
-const toArray = <T extends Element>(arrLike: ArrayLike<T>): T[] => {
+const toArray = <T extends Element>(arrLike: ArrayLike<T> | HTMLCollectionOf<T>): T[] => {
 	if (!arrLike) return [];
 	return Array.prototype.slice.call(arrLike);
 };
@@ -96,7 +96,7 @@ const registerPositions = (
 	gridBoundingClientRect: PositionCoordinates,
 	elements: HTMLCollectionOf<HTMLElement> | HTMLElement[]
 ) => {
-	const childrenElements = toArray<HTMLElement>(elements as ArrayLike<HTMLElement>);
+	const childrenElements = toArray(elements);
 	childrenElements.forEach((el) => {
 		if (typeof el.getBoundingClientRect !== 'function') return;
 
@@ -114,7 +114,7 @@ const registerPositions = (
 };
 
 const stopCurrentTransitions = (cache: ItemCachePosition, container: HTMLElement) => {
-	const childrenElements = toArray<Element>(container.children).map((el) => el as HTMLElement);
+	const childrenElements = Array.from(container.children) as HTMLElement[];
 	childrenElements.forEach((el) => {
 		const position = cache[el.dataset[DATASET_KEY] as string];
 		if (position && position.stop) {
@@ -151,7 +151,7 @@ const getNewPositions = (
 	});
 
 	positionGridChildren.forEach(({ el }) => {
-		if (toArray<Element>(el.children).length > 1) {
+		if (el.children.length > 1) {
 			throw new Error(
 				'Make sure every grid item has a single container element surrounding its children'
 			);
@@ -250,8 +250,8 @@ const PicturesGrid = ({ items, transition, duration, timeOut }: ItemsProps) => {
 
 				const cache = cacheRef.current;
 				const gridsItemPosition: PositionCoordinates = grid.getBoundingClientRect();
-				const childrenElement = stopCurrentTransitions(cache, grid);
-				const newPositions = getNewPositions(cache, gridsItemPosition, childrenElement);
+				const childrenElements = stopCurrentTransitions(cache, grid);
+				const newPositions = getNewPositions(cache, gridsItemPosition, childrenElements);
 				if (newPositions) {
 					startAnimation(cache, gridsItemPosition, newPositions, transition, duration, timeOut);
 				}
@@ -269,9 +269,9 @@ const PicturesGrid = ({ items, transition, duration, timeOut }: ItemsProps) => {
 
 		registerPositions(cache, gridsItemPosition, grid.children as HTMLCollectionOf<HTMLElement>);
 
-		const childrenElement = stopCurrentTransitions(cache, grid);
+		const childrenElements = stopCurrentTransitions(cache, grid);
 
-		const newPositions = getNewPositions(cache, gridsItemPosition, childrenElement);
+		const newPositions = getNewPositions(cache, gridsItemPosition, childrenElements);
 		if (newPositions) {
 			startAnimation(cache, gridsItemPosition, newPositions, transition, duration, timeOut);
 		}
