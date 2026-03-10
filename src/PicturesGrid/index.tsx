@@ -13,7 +13,7 @@ import {
 	easeOut,
 	linear,
 } from 'popmotion';
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import './picturesGrid.scss';
 import {
 	ChildCoordinates,
@@ -21,6 +21,7 @@ import {
 	ItemCachePosition,
 	ItemsProps,
 	PositionCoordinates,
+	PositionGridChild,
 	Positions,
 	Transition,
 } from './types';
@@ -39,9 +40,8 @@ const popmotionEasing: Transition = {
 };
 
 const DATASET_KEY = 'elegantPictureBoxId';
-const itemCachePosition: ItemCachePosition = {};
 
-const toArray = (arrLike: ArrayLike<any>): any[] => {
+const toArray = <T extends Element>(arrLike: ArrayLike<T> | HTMLCollectionOf<T>): T[] => {
 	if (!arrLike) return [];
 	return Array.prototype.slice.call(arrLike);
 };
@@ -92,6 +92,7 @@ const applyTransform = (
 };
 
 const registerPositions = (
+	cache: ItemCachePosition,
 	gridBoundingClientRect: PositionCoordinates,
 	elements: HTMLCollectionOf<HTMLElement> | HTMLElement[]
 ) => {
@@ -99,28 +100,26 @@ const registerPositions = (
 	childrenElements.forEach((el) => {
 		if (typeof el.getBoundingClientRect !== 'function') return;
 
-		//agregar propiedad data-aniamted-grid-id con un ID
 		if (!el.dataset[DATASET_KEY]) el.dataset[DATASET_KEY] = `${Math.random()}`;
 
 		const animatedGridId = el.dataset[DATASET_KEY] as string;
 
-		if (!itemCachePosition[animatedGridId]) itemCachePosition[animatedGridId] = {} as Positions;
+		if (!cache[animatedGridId]) cache[animatedGridId] = {} as Positions;
 
 		const currentPositionChildElement = getCurrentPositionChildElement(gridBoundingClientRect, el);
 
-		itemCachePosition[animatedGridId].childElement = currentPositionChildElement;
-		itemCachePosition[animatedGridId].parentElement = gridBoundingClientRect;
+		cache[animatedGridId].childElement = currentPositionChildElement;
+		cache[animatedGridId].parentElement = gridBoundingClientRect;
 	});
 };
 
-const stopCurrentTransitions = (container: HTMLElement) => {
-	const childrenElements = toArray(container.children) as HTMLElement[];
-	childrenElements.filter((el) => {
-		const position = itemCachePosition[el.dataset[DATASET_KEY] as string];
+const stopCurrentTransitions = (cache: ItemCachePosition, container: HTMLElement) => {
+	const childrenElements = Array.from(container.children) as HTMLElement[];
+	childrenElements.forEach((el) => {
+		const position = cache[el.dataset[DATASET_KEY] as string];
 		if (position && position.stop) {
 			position.stop();
 			delete position.stop;
-			return true;
 		}
 	});
 	childrenElements.forEach((el) => {
@@ -133,35 +132,26 @@ const stopCurrentTransitions = (container: HTMLElement) => {
 };
 
 const getNewPositions = (
+	cache: ItemCachePosition,
 	gridBoundingClientRect: PositionCoordinates,
 	childrenElements: HTMLElement[]
-) => {
-	const positionGridChildren = childrenElements.map((el) => ({
+): PositionGridChild[] | undefined => {
+	const positionGridChildren: PositionGridChild[] = childrenElements.map((el) => ({
 		childCoords: {} as ChildCoordinates,
 		el,
 		currentPositionChildElement: getCurrentPositionChildElement(gridBoundingClientRect, el),
 	}));
 
-	positionGridChildren.filter(({ el, currentPositionChildElement }) => {
-		const position = itemCachePosition[el.dataset[DATASET_KEY] as string];
+	positionGridChildren.forEach(({ el, currentPositionChildElement }) => {
+		const position = cache[el.dataset[DATASET_KEY] as string];
 
 		if (!position) {
-			registerPositions(currentPositionChildElement, [el]);
-			return false;
-		} else if (
-			gridBoundingClientRect.top === position.childElement.top &&
-			gridBoundingClientRect.left === position.childElement.left &&
-			gridBoundingClientRect.width === position.childElement.width &&
-			gridBoundingClientRect.height === position.childElement.height
-		) {
-			// if it hasn't moved, dont animate it
-			return false;
+			registerPositions(cache, currentPositionChildElement, [el]);
 		}
-		return true;
 	});
 
 	positionGridChildren.forEach(({ el }) => {
-		if (toArray(el.children).length > 1) {
+		if (el.children.length > 1) {
 			throw new Error(
 				'Make sure every grid item has a single container element surrounding its children'
 			);
@@ -185,8 +175,9 @@ const getNewPositions = (
 };
 
 const startAnimation = (
+	cache: ItemCachePosition,
 	gridBoundingClientRect: PositionCoordinates,
-	positionGridChildren: any,
+	positionGridChildren: PositionGridChild[],
 	transition: keyof Transition,
 	duration: number,
 	timeOut: number
@@ -196,12 +187,11 @@ const startAnimation = (
 			{
 				el,
 				currentPositionChildElement: { top, left, width, height },
-				childCoords: { top: childTop, left: childLeft },
 			},
 			i
 		) => {
 			const firstChild = el.children[0] as HTMLElement;
-			const position = itemCachePosition[el.dataset[DATASET_KEY] as string];
+			const position = cache[el.dataset[DATASET_KEY] as string];
 			const coords: Coords = {
 				scaleX: position.childElement.width / width,
 				scaleY: position.childElement.height / height,
@@ -213,7 +203,6 @@ const startAnimation = (
 
 			if (firstChild) {
 				firstChild.style.transformOrigin = '0 0';
-				firstChild.style.transition = '10s';
 			}
 
 			applyTransform(el, coords, { immediate: true });
@@ -228,7 +217,7 @@ const startAnimation = (
 					ease: popmotionEasing[transition],
 					onUpdate: (transforms: Coords) => {
 						applyTransform(el, transforms);
-						sync.postRender(() => registerPositions(gridBoundingClientRect, [el]));
+						sync.postRender(() => registerPositions(cache, gridBoundingClientRect, [el]));
 					},
 				});
 
@@ -244,30 +233,55 @@ const startAnimation = (
 
 const PicturesGrid = ({ items, transition, duration, timeOut }: ItemsProps) => {
 	const gridRef = useRef<HTMLDivElement>(null);
+	const cacheRef = useRef<ItemCachePosition>({});
 
-	useEffect(() => {
-		const grid: HTMLElement = gridRef.current;
-		const gridsItemPosition: PositionCoordinates = grid.getBoundingClientRect();
+	const handleClick = useCallback(
+		(ev: MouseEvent) => {
+			const grid = gridRef.current;
+			if (!grid) return;
 
-		registerPositions(gridsItemPosition, grid.children as HTMLCollectionOf<HTMLElement>);
-
-		const childrenElement = stopCurrentTransitions(grid);
-
-		grid.addEventListener('click', (ev) => {
-			let target = ev.target as any;
+			const target = ev.target as HTMLElement;
 
 			if (target.tagName === 'IMG') {
-				const elParent = target.parentElement['parentElement'];
-				//target.parentElement.classList.toggle('zoom');
+				const elParent = target.parentElement?.parentElement;
+				if (!elParent) return;
+
 				elParent.classList.toggle('zoom');
 
-				const newPositions = getNewPositions(gridsItemPosition, childrenElement);
-				startAnimation(gridsItemPosition, newPositions, transition, duration, timeOut);
-
-				return;
+				const cache = cacheRef.current;
+				const gridsItemPosition: PositionCoordinates = grid.getBoundingClientRect();
+				const childrenElements = stopCurrentTransitions(cache, grid);
+				const newPositions = getNewPositions(cache, gridsItemPosition, childrenElements);
+				if (newPositions) {
+					startAnimation(cache, gridsItemPosition, newPositions, transition, duration, timeOut);
+				}
 			}
-		});
-	});
+		},
+		[transition, duration, timeOut]
+	);
+
+	useEffect(() => {
+		const grid = gridRef.current;
+		if (!grid) return;
+
+		const cache = cacheRef.current;
+		const gridsItemPosition: PositionCoordinates = grid.getBoundingClientRect();
+
+		registerPositions(cache, gridsItemPosition, grid.children as HTMLCollectionOf<HTMLElement>);
+
+		const childrenElements = stopCurrentTransitions(cache, grid);
+
+		const newPositions = getNewPositions(cache, gridsItemPosition, childrenElements);
+		if (newPositions) {
+			startAnimation(cache, gridsItemPosition, newPositions, transition, duration, timeOut);
+		}
+
+		grid.addEventListener('click', handleClick);
+
+		return () => {
+			grid.removeEventListener('click', handleClick);
+		};
+	}, [items, transition, duration, timeOut, handleClick]);
 
 	return (
 		<div ref={gridRef} className='grid'>

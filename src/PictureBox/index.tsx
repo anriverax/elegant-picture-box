@@ -1,10 +1,14 @@
-// @flow
 import * as React from 'react';
-type Props = {};
-const PictureBox = (props: Props) => {
+
+interface PictureBoxProps {
+	src?: string;
+	alt?: string;
+}
+
+const PictureBox: React.FC<PictureBoxProps> = ({ src, alt }) => {
 	return (
 		<div>
-			<span>1</span>
+			{src ? <img src={src} alt={alt || ''} /> : <span>No image provided</span>}
 		</div>
 	);
 };

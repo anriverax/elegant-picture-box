@@ -1,6 +1,6 @@
 import type { Easing } from 'popmotion';
 
-interface Image {
+export interface Image {
 	img: string;
 	name: string;
 }
@@ -48,10 +48,15 @@ export interface Coords {
 	translateY: number;
 	scaleX: number;
 	scaleY: number;
-	[key: string]: number;
 }
 
 export interface ChildCoordinates {
 	top?: number;
 	left?: number;
+}
+
+export interface PositionGridChild {
+	childCoords: ChildCoordinates;
+	el: HTMLElement;
+	currentPositionChildElement: PositionCoordinates;
 }

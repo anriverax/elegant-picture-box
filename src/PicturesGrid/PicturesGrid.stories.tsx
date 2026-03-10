@@ -1,8 +1,8 @@
 import { Story } from '@storybook/react';
 import { Meta } from '@storybook/react/types-6-0';
 import React from 'react';
-import PicturesGrid from './PicturesGrid';
-import { ItemsProps } from './types';
+import PicturesGrid from './index';
+import { Image, ItemsProps } from './types';
 export default {
 	title: 'Components/PicturesGrid',
 	component: PicturesGrid,
@@ -35,7 +35,7 @@ const Template: Story<ItemsProps> = (args) => <PicturesGrid {...args} />;
 
 export const PicturesGridComponent = Template.bind({});
 
-const portfolios: Array<any> = [
+const portfolios: Array<Image> = [
 	{
 		img: 'https://pm1.narvii.com/7119/c2086e54dd9db93f0be4846c6962a28786ab94b5r1-260-260v2_hq.jpg',
 	},
